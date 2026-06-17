@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nexus Bank — Secure Online Banking</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -133,6 +136,7 @@
   }
   .btn-primary:hover { background: var(--blue-dark); }
   .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
 
   .auth-switch { text-align: center; margin-top: 1.25rem; font-size: 14px; color: var(--gray-text); }
   .auth-switch a { color: var(--blue); cursor: pointer; font-weight: 600; text-decoration: none; }
@@ -372,8 +376,7 @@
       <div id="login-error" class="alert alert-error" style="display:none"></div>
       <div class="field"><label>Email address</label><input type="email" id="login-email" placeholder="you@example.com" /></div>
       <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" /></div>
-      <div class="field"><label><input type="checkbox" id="remember-me" style="margin-right:6px;" />Remember me on this device</label></div>
-      <button class="btn-primary" onclick="doLogin()">Sign in</button>
+      <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign in</button>
       <p class="auth-switch">Don't have an account? <a onclick="show('screen-signup')">Create one free</a></p>
       <div class="demo-hint"><strong>Demo account:</strong> demo@nexusbank.com &nbsp;/&nbsp; demo123</div>
     </div>
@@ -394,7 +397,7 @@
       <div class="field"><label>Full name</label><input type="text" id="su-name" placeholder="Alex Johnson" /></div>
       <div class="field"><label>Email address</label><input type="email" id="su-email" placeholder="you@example.com" /></div>
       <div class="field"><label>Password <span style="color:var(--gray-text);font-weight:400">(min. 6 characters)</span></label><input type="password" id="su-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignup()" /></div>
-      <button class="btn-primary" onclick="doSignup()">Create account</button>
+      <button class="btn-primary" id="signup-btn" onclick="doSignup()">Create account</button>
       <p class="auth-switch">Already have an account? <a onclick="show('screen-login')">Sign in</a></p>
     </div>
   </div>
@@ -487,67 +490,24 @@
 </div>
 
 <script>
-const DEMO = { email:'demo@nexusbank.com', password:'demo123', name:'Alex Johnson' };
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCkN-z4qK9F_qPh1nB1Z_v4L6mKqWxZ1hQ",
+  authDomain: "nexus-bank-cb5e7.firebaseapp.com",
+  projectId: "nexus-bank-cb5e7",
+  storageBucket: "nexus-bank-cb5e7.appspot.com",
+  messagingSenderId: "79644380616",
+  appId: "1:79644380616:web:a04a55f03ea348126e3cdd"
+};
 
-// Hybrid storage: try localStorage first, fallback to sessionStorage
-function saveData(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch (e) {
-    try {
-      sessionStorage.setItem(key, value);
-    } catch (e2) {
-      console.warn('Storage unavailable');
-    }
-  }
-}
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-function loadData(key) {
-  try {
-    return localStorage.getItem(key) || sessionStorage.getItem(key);
-  } catch (e) {
-    return null;
-  }
-}
-
-function removeData(key) {
-  try {
-    localStorage.removeItem(key);
-    sessionStorage.removeItem(key);
-  } catch (e) {}
-}
-
-// Initialize users from storage
-function loadUsersFromStorage() {
-  const stored = loadData('nexus_users');
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  return [{ ...DEMO }];
-}
-
-let users = loadUsersFromStorage();
-
-// Save users to storage
-function saveUsersToStorage() {
-  saveData('nexus_users', JSON.stringify(users));
-}
-
-// Check for remembered user on page load
-function checkRememberedUser() {
-  const remembered = loadData('nexus_remembered_user');
-  if (remembered) {
-    const user = JSON.parse(remembered);
-    document.getElementById('login-email').value = user.email;
-    document.getElementById('remember-me').checked = true;
-  }
-}
-
-let state = {
-  currentUser: null,
+let currentUser = null;
+let userDataLocal = {
   balance: 40500,
-  filterMode: 'all',
-  nextId: 9,
   txns: [
     { id:1, name:'Tech Growth Fund — Investment Return', date:'Jun 16, 2026', amount:1250, type:'income' },
     { id:2, name:'Dividend — S&P 500 ETF', date:'Jun 14, 2026', amount:325.50, type:'income' },
@@ -557,8 +517,21 @@ let state = {
     { id:6, name:'Insurance Premium', date:'Jun 9, 2026', amount:-325.00, type:'expense' },
     { id:7, name:'Cryptocurrency Investment — BTC', date:'Jun 8, 2026', amount:-5000, type:'expense' },
     { id:8, name:'Bond Interest Payment', date:'Jun 5, 2026', amount:450, type:'income' },
-  ]
+  ],
+  filterMode: 'all',
+  nextId: 9
 };
+
+// Monitor Auth State
+auth.onAuthStateChanged((user) => {
+  currentUser = user;
+  if (user) {
+    loadUserData(user.uid);
+    show('screen-dashboard');
+  } else {
+    show('screen-login');
+  }
+});
 
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -566,93 +539,118 @@ function show(id) {
 }
 
 function doLogin() {
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const email = document.getElementById('login-email').value.trim();
   const pass = document.getElementById('login-pass').value;
-  const remember = document.getElementById('remember-me').checked;
   const errEl = document.getElementById('login-error');
-  const user = users.find(u => u.email.toLowerCase() === email && u.password === pass);
-  if (!user) { errEl.textContent = 'Incorrect email or password. Try demo@nexusbank.com / demo123'; errEl.style.display='block'; return; }
-  errEl.style.display = 'none';
-  state.currentUser = user;
+  const btn = document.getElementById('login-btn');
   
-  // Save remembered user if checkbox is checked
-  if (remember) {
-    saveData('nexus_remembered_user', JSON.stringify({ email: user.email }));
-  } else {
-    removeData('nexus_remembered_user');
+  if (!email || !pass) {
+    errEl.textContent = 'Please enter email and password.';
+    errEl.style.display = 'block';
+    return;
   }
-  
-  loadUserState(user.email);
-  loadDashboard();
-  show('screen-dashboard');
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(() => {
+      errEl.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    })
+    .catch((error) => {
+      errEl.textContent = error.message || 'Login failed. Check your email and password.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    });
 }
 
 function doSignup() {
   const name = document.getElementById('su-name').value.trim();
-  const email = document.getElementById('su-email').value.trim().toLowerCase();
+  const email = document.getElementById('su-email').value.trim();
   const pass = document.getElementById('su-pass').value;
   const errEl = document.getElementById('signup-error');
-  if (!name) { errEl.textContent = 'Please enter your full name.'; errEl.style.display='block'; return; }
-  if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display='block'; return; }
-  if (pass.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display='block'; return; }
-  if (users.find(u => u.email === email)) { errEl.textContent = 'An account with this email already exists.'; errEl.style.display='block'; return; }
-  const newUser = { email, password: pass, name };
-  users.push(newUser);
-  saveUsersToStorage();
-  errEl.style.display = 'none';
-  state.currentUser = newUser;
-  state.balance = 40500;
-  state.txns = [{ id:1, name:'Stock Investment — Initial Portfolio', date:todayStr(), amount:40500, type:'income' }];
-  state.nextId = 2;
-  saveUserState(email);
-  loadDashboard();
-  show('screen-dashboard');
+  const btn = document.getElementById('signup-btn');
+  
+  if (!name || !email || !pass) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (pass.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+
+  auth.createUserWithEmailAndPassword(email, pass)
+    .then((userCredential) => {
+      const uid = userCredential.user.uid;
+      // Create user profile in Firestore
+      return db.collection('users').doc(uid).set({
+        name: name,
+        email: email,
+        balance: 40500,
+        txns: [{ id:1, name:'Stock Investment — Initial Portfolio', date:todayStr(), amount:40500, type:'income' }],
+        nextId: 2,
+        createdAt: new Date()
+      });
+    })
+    .then(() => {
+      errEl.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = 'Create account';
+      document.getElementById('su-name').value = '';
+      document.getElementById('su-email').value = '';
+      document.getElementById('su-pass').value = '';
+    })
+    .catch((error) => {
+      errEl.textContent = error.message || 'Signup failed.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Create account';
+    });
 }
 
 function doLogout() {
-  saveUserState(state.currentUser.email);
-  state.currentUser = null;
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-pass').value = '';
-  document.getElementById('remember-me').checked = false;
-  document.getElementById('login-error').style.display = 'none';
-  removeData('nexus_remembered_user');
-  show('screen-login');
+  auth.signOut().then(() => {
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-pass').value = '';
+  });
 }
 
-function saveUserState(email) {
-  const userState = {
-    balance: state.balance,
-    filterMode: state.filterMode,
-    nextId: state.nextId,
-    txns: state.txns
-  };
-  saveData(`nexus_state_${email}`, JSON.stringify(userState));
+function loadUserData(uid) {
+  db.collection('users').doc(uid).get().then((doc) => {
+    if (doc.exists) {
+      const data = doc.data();
+      userDataLocal = {
+        balance: data.balance || 40500,
+        txns: data.txns || [],
+        filterMode: 'all',
+        nextId: data.nextId || 2
+      };
+      loadDashboard(data.name);
+    }
+  }).catch((error) => {
+    console.error('Error loading user data:', error);
+  });
 }
 
-function loadUserState(email) {
-  const stored = loadData(`nexus_state_${email}`);
-  if (stored) {
-    const userState = JSON.parse(stored);
-    state.balance = userState.balance;
-    state.filterMode = userState.filterMode;
-    state.nextId = userState.nextId;
-    state.txns = userState.txns;
-  } else {
-    state.balance = 40500;
-    state.filterMode = 'all';
-    state.nextId = 9;
-    state.txns = [
-      { id:1, name:'Tech Growth Fund — Investment Return', date:'Jun 16, 2026', amount:1250, type:'income' },
-      { id:2, name:'Dividend — S&P 500 ETF', date:'Jun 14, 2026', amount:325.50, type:'income' },
-      { id:3, name:'Monthly Utility Bill', date:'Jun 13, 2026', amount:-145.00, type:'expense' },
-      { id:4, name:'Stock Purchase — Tesla Inc.', date:'Jun 12, 2026', amount:-2500, type:'expense' },
-      { id:5, name:'Freelance Project Completion', date:'Jun 10, 2026', amount:1850, type:'income' },
-      { id:6, name:'Insurance Premium', date:'Jun 9, 2026', amount:-325.00, type:'expense' },
-      { id:7, name:'Cryptocurrency Investment — BTC', date:'Jun 8, 2026', amount:-5000, type:'expense' },
-      { id:8, name:'Bond Interest Payment', date:'Jun 5, 2026', amount:450, type:'income' },
-    ];
-  }
+function saveUserData(uid) {
+  db.collection('users').doc(uid).update({
+    balance: userDataLocal.balance,
+    txns: userDataLocal.txns,
+    nextId: userDataLocal.nextId,
+    lastUpdated: new Date()
+  }).catch((error) => {
+    console.error('Error saving user data:', error);
+  });
 }
 
 function todayStr() {
@@ -663,24 +661,23 @@ function fmt(n) {
   return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 }
 
-function loadDashboard() {
-  const u = state.currentUser;
-  const initials = u.name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+function loadDashboard(name) {
+  const initials = name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('dash-avatar').textContent = initials;
-  document.getElementById('dash-name').textContent = u.name;
-  document.getElementById('greet-name').textContent = u.name.split(' ')[0];
+  document.getElementById('dash-name').textContent = name;
+  document.getElementById('greet-name').textContent = name.split(' ')[0];
   updateBalance();
   updateStats();
   renderTxns();
 }
 
 function updateBalance() {
-  document.getElementById('bal-display').textContent = fmt(state.balance);
+  document.getElementById('bal-display').textContent = fmt(userDataLocal.balance);
 }
 
 function updateStats() {
-  const income = state.txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = state.txns.filter(t=>t.type==='expense').reduce((s,t)=>s+Math.abs(t.amount),0);
+  const income = userDataLocal.txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = userDataLocal.txns.filter(t=>t.type==='expense').reduce((s,t)=>s+Math.abs(t.amount),0);
   const net = income - expense;
   document.getElementById('stat-in').textContent = '+' + fmt(income);
   document.getElementById('stat-out').textContent = '-' + fmt(expense);
@@ -691,7 +688,7 @@ function updateStats() {
 
 function renderTxns() {
   const list = document.getElementById('txn-list');
-  const filtered = state.filterMode === 'all' ? state.txns : state.txns.filter(t=>t.type===state.filterMode);
+  const filtered = userDataLocal.filterMode === 'all' ? userDataLocal.txns : userDataLocal.txns.filter(t=>t.type===userDataLocal.filterMode);
   if (!filtered.length) { list.innerHTML = '<div class="empty-state"><i class="fas fa-receipt" style="font-size:28px;margin-bottom:8px;display:block;color:#ccc"></i>No transactions found</div>'; return; }
   list.innerHTML = filtered.slice().reverse().map(t => `
     <div class="txn-item">
@@ -707,7 +704,7 @@ function renderTxns() {
 }
 
 function filterTxn(mode, el) {
-  state.filterMode = mode;
+  userDataLocal.filterMode = mode;
   document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   renderTxns();
@@ -743,11 +740,11 @@ function submitModal() {
   const okEl = document.getElementById('m-ok');
   if (!name) { errEl.textContent='Please fill in all fields.'; errEl.style.display='block'; return; }
   if (!amount || amount <= 0) { errEl.textContent='Enter a valid amount greater than $0.'; errEl.style.display='block'; return; }
-  if (cfg.sign < 0 && amount > state.balance) { errEl.textContent=`Insufficient funds. Your balance is ${fmt(state.balance)}.`; errEl.style.display='block'; return; }
+  if (cfg.sign < 0 && amount > userDataLocal.balance) { errEl.textContent=`Insufficient funds. Your balance is ${fmt(userDataLocal.balance)}.`; errEl.style.display='block'; return; }
   errEl.style.display = 'none';
   const signedAmt = Math.round(cfg.sign * amount * 100) / 100;
-  state.balance = Math.round((state.balance + signedAmt) * 100) / 100;
-  state.txns.push({ id: state.nextId++, name, date: todayStr(), amount: signedAmt, type: cfg.sign > 0 ? 'income' : 'expense' });
+  userDataLocal.balance = Math.round((userDataLocal.balance + signedAmt) * 100) / 100;
+  userDataLocal.txns.push({ id: userDataLocal.nextId++, name, date: todayStr(), amount: signedAmt, type: cfg.sign > 0 ? 'income' : 'expense' });
   okEl.textContent = `${cfg.verb} ${fmt(amount)} successfully.`;
   okEl.style.display = 'block';
   document.getElementById('m-name').value = '';
@@ -755,14 +752,11 @@ function submitModal() {
   updateBalance();
   updateStats();
   renderTxns();
-  saveUserState(state.currentUser.email);
+  saveUserData(currentUser.uid);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 function closeBg(e) { if (e.target.id === 'modal-overlay') closeModal(); }
-
-// Load remembered user on page start
-window.addEventListener('load', checkRememberedUser);
 </script>
 </body>
 </html>
