@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nexus Bank — Secure Online Banking</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #185FA5;
+    --blue-dark: #0C447C;
+    --blue-light: #E6F1FB;
+    --blue-mid: #B5D4F4;
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --gray-bg: #F7F8FA;
+    --gray-border: #E2E6EA;
+    --gray-text: #6B7280;
+    --white: #ffffff;
+    --text: #1a1a2e;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gray-bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── AUTH ── */
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: linear-gradient(135deg, #0C447C 0%, #185FA5 50%, #378ADD 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .auth-page::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    top: -200px; right: -200px;
+  }
+  .auth-page::after {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    bottom: -150px; left: -100px;
+  }
+
+  .auth-card {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    z-index: 1;
+  }
+
+  .bank-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 2rem;
+    letter-spacing: -0.5px;
+  }
+  .bank-logo .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--blue);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 18px;
+  }
+
+  .auth-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .auth-sub { font-size: 14px; color: var(--gray-text); margin-bottom: 1.75rem; }
+
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-text); margin-bottom: 6px; }
+  .field input {
+    width: 100%;
+    height: 44px;
+    border: 1.5px solid var(--gray-border);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.12); }
+
+  .btn-primary {
+    width: 100%;
+    height: 46px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    margin-top: 0.25rem;
+  }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-primary:active { transform: scale(0.98); }
+
+  .auth-switch { text-align: center; margin-top: 1.25rem; font-size: 14px; color: var(--gray-text); }
+  .auth-switch a { color: var(--blue); cursor: pointer; font-weight: 600; text-decoration: none; }
+
+  .alert { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 1rem; }
+  .alert-error { background: var(--red-light); color: var(--red); }
+  .alert-success { background: var(--green-light); color: var(--green); }
+
+  .demo-hint {
+    margin-top: 1.25rem;
+    background: var(--blue-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--blue-dark);
+  }
+  .demo-hint strong { font-weight: 600; }
+
+  /* ── DASHBOARD ── */
+  .dash-layout { min-height: 100vh; display: flex; flex-direction: column; }
+
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-border);
+    padding: 0 2rem;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--blue); }
+  .topbar-logo .logo-icon { width: 34px; height: 34px; background: var(--blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
+
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .user-chip { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--blue-light);
+    color: var(--blue);
+    font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--blue-mid);
+  }
+  .user-name { font-size: 14px; font-weight: 500; }
+  .logout-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: 1.5px solid var(--gray-border);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-size: 13px; color: var(--gray-text);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .logout-btn:hover { background: var(--gray-bg); color: var(--text); }
+
+  .dash-main { flex: 1; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; }
+
+  .greeting { font-size: 22px; font-weight: 700; margin-bottom: 1.5rem; }
+  .greeting span { color: var(--blue); }
+
+  /* Balance + quick actions row */
+  .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+
+  .balance-card {
+    background: linear-gradient(135deg, #0C447C, #185FA5 60%, #378ADD);
+    border-radius: 18px;
+    padding: 1.75rem;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .balance-card::after {
+    content: '';
+    position: absolute;
+    right: -50px; top: -50px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+  }
+  .balance-card::before {
+    content: '';
+    position: absolute;
+    left: -30px; bottom: -60px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .bal-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.75; margin-bottom: 8px; }
+  .bal-amount { font-size: 38px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 1.25rem; position: relative; z-index: 1; }
+  .bal-meta { display: flex; gap: 1.25rem; font-size: 12px; opacity: 0.8; position: relative; z-index: 1; }
+  .bal-meta span { display: flex; align-items: center; gap: 5px; }
+
+  .actions-card {
+    background: var(--white);
+    border-radius: 18px;
+    padding: 1.75rem;
+    box-shadow: var(--shadow);
+  }
+  .actions-title { font-size: 13px; font-weight: 600; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem; }
+  .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .action-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px;
+    background: var(--gray-bg);
+    border: 1.5px solid var(--gray-border);
+    border-radius: var(--radius-sm);
+    padding: 16px 8px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    font-size: 12px; color: var(--gray-text); font-weight: 500;
+  }
+  .action-btn:hover { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue); }
+  .action-btn i { font-size: 20px; color: var(--blue); }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.25rem; }
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow);
+    border-left: 4px solid transparent;
+  }
+  .stat-card.income { border-color: #639922; }
+  .stat-card.expense { border-color: var(--red); }
+  .stat-card.savings { border-color: var(--blue); }
+  .stat-label { font-size: 12px; color: var(--gray-text); margin-bottom: 4px; font-weight: 500; }
+  .stat-val { font-size: 20px; font-weight: 700; }
+  .stat-val.green { color: var(--green); }
+  .stat-val.red { color: var(--red); }
+  .stat-val.blue { color: var(--blue); }
+
+  /* Transactions */
+  .txn-section { background: var(--white); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+  .txn-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--gray-border); display: flex; align-items: center; justify-content: space-between; }
+  .txn-header-title { font-size: 16px; font-weight: 700; }
+
+  .filter-tabs { display: flex; gap: 6px; }
+  .ftab {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1.5px solid var(--gray-border);
+    background: none; color: var(--gray-text);
+    transition: all 0.15s;
+  }
+  .ftab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .txn-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 1.5rem;
+    border-bottom: 1px solid var(--gray-border);
+    transition: background 0.15s;
+  }
+  .txn-item:last-child { border-bottom: none; }
+  .txn-item:hover { background: var(--gray-bg); }
+
+  .txn-icon-wrap {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .txn-icon-wrap.income { background: var(--green-light); color: var(--green); }
+  .txn-icon-wrap.expense { background: var(--red-light); color: var(--red); }
+
+  .txn-info { flex: 1; }
+  .txn-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .txn-date { font-size: 12px; color: var(--gray-text); margin-top: 2px; }
+  .txn-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; font-weight: 500; }
+  .txn-badge.income { background: var(--green-light); color: var(--green); }
+  .txn-badge.expense { background: var(--red-light); color: var(--red); }
+
+  .txn-amt { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .txn-amt.income { color: var(--green); }
+  .txn-amt.expense { color: var(--red); }
+
+  .empty-state { text-align: center; padding: 2.5rem; color: var(--gray-text); font-size: 14px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,20,40,0.5);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 2rem;
+    width: 100%; max-width: 400px;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .modal-close { background: var(--gray-bg); border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; color: var(--gray-text); display: flex; align-items: center; justify-content: center; }
+  .modal-close:hover { background: var(--gray-border); }
+
+  /* ── FOOTER ── */
+  .footer { text-align: center; padding: 1.5rem; font-size: 12px; color: var(--gray-text); border-top: 1px solid var(--gray-border); background: var(--white); margin-top: auto; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .top-row { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .topbar { padding: 0 1rem; }
+    .dash-main { padding: 1rem; }
+    .user-name { display: none; }
+    .bal-amount { font-size: 28px; }
+  }
+  @media (max-width: 400px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .auth-card { padding: 1.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="screen-login" class="screen active">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="bank-logo">
+        <div class="logo-icon"><i class="fas fa-university"></i></div>
+        Nexus Bank
+      </div>
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub">Sign in to your account to continue</p>
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <div class="field"><label>Email address</label><input type="email" id="login-email" placeholder="you@example.com" /></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" /></div>
+      <button class="btn-primary" onclick="doLogin()">Sign in</button>
+      <p class="auth-switch">Don't have an account? <a onclick="show('screen-signup')">Create one free</a></p>
+      <div class="demo-hint"><strong>Demo account:</strong> demo@nexusbank.com &nbsp;/&nbsp; demo123</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SIGNUP ═══════════ -->
+<div id="screen-signup" class="screen">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="bank-logo">
+        <div class="logo-icon"><i class="fas fa-university"></i></div>
+        Nexus Bank
+      </div>
+      <h1 class="auth-title">Open your account</h1>
+      <p class="auth-sub">Join thousands of customers banking smarter</p>
+      <div id="signup-error" class="alert alert-error" style="display:none"></div>
+      <div class="field"><label>Full name</label><input type="text" id="su-name" placeholder="Alex Johnson" /></div>
+      <div class="field"><label>Email address</label><input type="email" id="su-email" placeholder="you@example.com" /></div>
+      <div class="field"><label>Password <span style="color:var(--gray-text);font-weight:400">(min. 6 characters)</span></label><input type="password" id="su-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignup()" /></div>
+      <button class="btn-primary" onclick="doSignup()">Create account</button>
+      <p class="auth-switch">Already have an account? <a onclick="show('screen-login')">Sign in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ DASHBOARD ═══════════ -->
+<div id="screen-dashboard" class="screen">
+  <div class="dash-layout">
+    <nav class="topbar">
+      <div class="topbar-logo">
+        <div class="logo-icon"><i class="fas fa-university"></i></div>
+        Nexus Bank
+      </div>
+      <div class="topbar-right">
+        <div class="user-chip">
+          <div class="avatar" id="dash-avatar">AJ</div>
+          <span class="user-name" id="dash-name">Alex Johnson</span>
+        </div>
+        <button class="logout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Sign out</button>
+      </div>
+    </nav>
+
+    <main class="dash-main">
+      <p class="greeting">Good day, <span id="greet-name">Alex</span> 👋</p>
+
+      <div class="top-row">
+        <div class="balance-card">
+          <p class="bal-label">Available balance</p>
+          <p class="bal-amount" id="bal-display">$25,000.00</p>
+          <div class="bal-meta">
+            <span><i class="fas fa-credit-card"></i> Checking ••4821</span>
+            <span><i class="fas fa-shield-alt"></i> FDIC insured</span>
+          </div>
+        </div>
+
+        <div class="actions-card">
+          <p class="actions-title">Quick actions</p>
+          <div class="actions-grid">
+            <button class="action-btn" onclick="openModal('send')"><i class="fas fa-paper-plane"></i>Send money</button>
+            <button class="action-btn" onclick="openModal('deposit')"><i class="fas fa-download"></i>Deposit</button>
+            <button class="action-btn" onclick="openModal('withdraw')"><i class="fas fa-money-bill-wave"></i>Withdraw</button>
+            <button class="action-btn" onclick="openModal('pay')"><i class="fas fa-file-invoice-dollar"></i>Pay bill</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card income">
+          <p class="stat-label">Income this month</p>
+          <p class="stat-val green" id="stat-in">+$0.00</p>
+        </div>
+        <div class="stat-card expense">
+          <p class="stat-label">Expenses this month</p>
+          <p class="stat-val red" id="stat-out">-$0.00</p>
+        </div>
+        <div class="stat-card savings">
+          <p class="stat-label">Net this month</p>
+          <p class="stat-val blue" id="stat-net">$0.00</p>
+        </div>
+      </div>
+
+      <div class="txn-section">
+        <div class="txn-header">
+          <p class="txn-header-title">Transactions</p>
+          <div class="filter-tabs">
+            <button class="ftab active" onclick="filterTxn('all',this)">All</button>
+            <button class="ftab" onclick="filterTxn('income',this)">Income</button>
+            <button class="ftab" onclick="filterTxn('expense',this)">Expenses</button>
+          </div>
+        </div>
+        <div id="txn-list"></div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      &copy; 2026 Nexus Bank &nbsp;·&nbsp; FDIC Insured &nbsp;·&nbsp; Equal Housing Lender &nbsp;·&nbsp; Member FDIC
+    </footer>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL ═══════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeBg(event)">
+  <div class="modal-box">
+    <div class="modal-head">
+      <p class="modal-title" id="modal-title">Send money</p>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const DEMO = { email:'demo@nexusbank.com', password:'demo123', name:'Alex Johnson' };
+const users = [{ ...DEMO }];
+let state = {
+  currentUser: null,
+  balance: 25000,
+  filterMode: 'all',
+  nextId: 9,
+  txns: [
+    { id:1, name:'Direct deposit — Employer', date:'Jun 14, 2026', amount:3200, type:'income' },
+    { id:2, name:'Netflix subscription', date:'Jun 13, 2026', amount:-15.99, type:'expense' },
+    { id:3, name:'Grocery Store', date:'Jun 12, 2026', amount:-89.45, type:'expense' },
+    { id:4, name:'Freelance payment', date:'Jun 10, 2026', amount:750, type:'income' },
+    { id:5, name:'Electric bill', date:'Jun 9, 2026', amount:-124.00, type:'expense' },
+    { id:6, name:'Coffee Shop', date:'Jun 8, 2026', amount:-6.80, type:'expense' },
+    { id:7, name:'Transfer from savings', date:'Jun 5, 2026', amount:500, type:'income' },
+    { id:8, name:'Internet bill', date:'Jun 3, 2026', amount:-59.99, type:'expense' },
+  ]
+};
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const user = users.find(u => u.email.toLowerCase() === email && u.password === pass);
+  if (!user) { errEl.textContent = 'Incorrect email or password. Try demo@nexusbank.com / demo123'; errEl.style.display='block'; return; }
+  errEl.style.display = 'none';
+  state.currentUser = user;
+  loadDashboard();
+  show('screen-dashboard');
+}
+
+function doSignup() {
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim().toLowerCase();
+  const pass = document.getElementById('su-pass').value;
+  const errEl = document.getElementById('signup-error');
+  if (!name) { errEl.textContent = 'Please enter your full name.'; errEl.style.display='block'; return; }
+  if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display='block'; return; }
+  if (pass.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display='block'; return; }
+  if (users.find(u => u.email === email)) { errEl.textContent = 'An account with this email already exists.'; errEl.style.display='block'; return; }
+  const newUser = { email, password: pass, name };
+  users.push(newUser);
+  errEl.style.display = 'none';
+  state.currentUser = newUser;
+  state.balance = 25000;
+  state.txns = [{ id:1, name:'Welcome bonus — account opened', date:todayStr(), amount:25000, type:'income' }];
+  state.nextId = 2;
+  loadDashboard();
+  show('screen-dashboard');
+}
+
+function doLogout() {
+  state.currentUser = null;
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  show('screen-login');
+}
+
+function todayStr() {
+  return new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+function fmt(n) {
+  return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+
+function loadDashboard() {
+  const u = state.currentUser;
+  const initials = u.name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('dash-avatar').textContent = initials;
+  document.getElementById('dash-name').textContent = u.name;
+  document.getElementById('greet-name').textContent = u.name.split(' ')[0];
+  updateBalance();
+  updateStats();
+  renderTxns();
+}
+
+function updateBalance() {
+  document.getElementById('bal-display').textContent = fmt(state.balance);
+}
+
+function updateStats() {
+  const income = state.txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = state.txns.filter(t=>t.type==='expense').reduce((s,t)=>s+Math.abs(t.amount),0);
+  const net = income - expense;
+  document.getElementById('stat-in').textContent = '+' + fmt(income);
+  document.getElementById('stat-out').textContent = '-' + fmt(expense);
+  const netEl = document.getElementById('stat-net');
+  netEl.textContent = (net >= 0 ? '+' : '-') + fmt(net);
+  netEl.className = 'stat-val ' + (net >= 0 ? 'green' : 'red');
+}
+
+function renderTxns() {
+  const list = document.getElementById('txn-list');
+  const filtered = state.filterMode === 'all' ? state.txns : state.txns.filter(t=>t.type===state.filterMode);
+  if (!filtered.length) { list.innerHTML = '<div class="empty-state"><i class="fas fa-receipt" style="font-size:28px;margin-bottom:8px;display:block;color:#ccc"></i>No transactions found</div>'; return; }
+  list.innerHTML = filtered.slice().reverse().map(t => `
+    <div class="txn-item">
+      <div class="txn-icon-wrap ${t.type}">
+        <i class="fas ${t.type==='income' ? 'fa-arrow-down-left' : 'fa-arrow-up-right'}"></i>
+      </div>
+      <div class="txn-info">
+        <p class="txn-name">${t.name} <span class="txn-badge ${t.type}">${t.type}</span></p>
+        <p class="txn-date">${t.date}</p>
+      </div>
+      <p class="txn-amt ${t.type}">${t.amount >= 0 ? '+' : '-'}${fmt(t.amount)}</p>
+    </div>`).join('');
+}
+
+function filterTxn(mode, el) {
+  state.filterMode = mode;
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTxns();
+}
+
+const modalConfigs = {
+  send:     { title:'Send money',   nameLabel:'Recipient',   amtLabel:'Amount to send',    sign:-1, btnText:'Send now',    verb:'Sent' },
+  deposit:  { title:'Deposit funds',nameLabel:'Description', amtLabel:'Amount to deposit', sign:+1, btnText:'Deposit',     verb:'Deposited' },
+  withdraw: { title:'Withdraw cash',nameLabel:'Description', amtLabel:'Amount to withdraw',sign:-1, btnText:'Withdraw',    verb:'Withdrawn' },
+  pay:      { title:'Pay a bill',   nameLabel:'Payee name',  amtLabel:'Amount',            sign:-1, btnText:'Pay now',     verb:'Paid' },
+};
+
+let currentModalType = null;
+
+function openModal(type) {
+  currentModalType = type;
+  const cfg = modalConfigs[type];
+  document.getElementById('modal-title').textContent = cfg.title;
+  document.getElementById('modal-body').innerHTML = `
+    <div id="m-err" class="alert alert-error" style="display:none"></div>
+    <div id="m-ok" class="alert alert-success" style="display:none"></div>
+    <div class="field"><label>${cfg.nameLabel}</label><input type="text" id="m-name" placeholder="Enter name..." /></div>
+    <div class="field"><label>${cfg.amtLabel} (USD)</label><input type="number" id="m-amount" placeholder="0.00" min="0.01" step="0.01" /></div>
+    <button class="btn-primary" onclick="submitModal()">${cfg.btnText}</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function submitModal() {
+  const cfg = modalConfigs[currentModalType];
+  const name = document.getElementById('m-name').value.trim();
+  const amount = parseFloat(document.getElementById('m-amount').value);
+  const errEl = document.getElementById('m-err');
+  const okEl = document.getElementById('m-ok');
+  if (!name) { errEl.textContent='Please fill in all fields.'; errEl.style.display='block'; return; }
+  if (!amount || amount <= 0) { errEl.textContent='Enter a valid amount greater than $0.'; errEl.style.display='block'; return; }
+  if (cfg.sign < 0 && amount > state.balance) { errEl.textContent=`Insufficient funds. Your balance is ${fmt(state.balance)}.`; errEl.style.display='block'; return; }
+  errEl.style.display = 'none';
+  const signedAmt = Math.round(cfg.sign * amount * 100) / 100;
+  state.balance = Math.round((state.balance + signedAmt) * 100) / 100;
+  state.txns.push({ id: state.nextId++, name, date: todayStr(), amount: signedAmt, type: cfg.sign > 0 ? 'income' : 'expense' });
+  okEl.textContent = `${cfg.verb} ${fmt(amount)} successfully.`;
+  okEl.style.display = 'block';
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-amount').value = '';
+  updateBalance();
+  updateStats();
+  renderTxns();
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeBg(e) { if (e.target.id === 'modal-overlay') closeModal(); }
+</script>
+</body>
+</html>
