@@ -422,7 +422,7 @@
       <div class="top-row">
         <div class="balance-card">
           <p class="bal-label">Available balance</p>
-          <p class="bal-amount" id="bal-display">$25,000.00</p>
+          <p class="bal-amount" id="bal-display">$40,500.00</p>
           <div class="bal-meta">
             <span><i class="fas fa-credit-card"></i> Checking ••4821</span>
             <span><i class="fas fa-shield-alt"></i> FDIC insured</span>
@@ -487,21 +487,37 @@
 
 <script>
 const DEMO = { email:'demo@nexusbank.com', password:'demo123', name:'Alex Johnson' };
-const users = [{ ...DEMO }];
+
+// Initialize users from localStorage
+function loadUsersFromStorage() {
+  const stored = localStorage.getItem('nexus_users');
+  if (stored) {
+    return JSON.parse(stored);
+  }
+  return [{ ...DEMO }];
+}
+
+let users = loadUsersFromStorage();
+
+// Save users to localStorage whenever they change
+function saveUsersToStorage() {
+  localStorage.setItem('nexus_users', JSON.stringify(users));
+}
+
 let state = {
   currentUser: null,
-  balance: 25000,
+  balance: 40500,
   filterMode: 'all',
   nextId: 9,
   txns: [
-    { id:1, name:'Direct deposit — Employer', date:'Jun 14, 2026', amount:3200, type:'income' },
-    { id:2, name:'Netflix subscription', date:'Jun 13, 2026', amount:-15.99, type:'expense' },
-    { id:3, name:'Grocery Store', date:'Jun 12, 2026', amount:-89.45, type:'expense' },
-    { id:4, name:'Freelance payment', date:'Jun 10, 2026', amount:750, type:'income' },
-    { id:5, name:'Electric bill', date:'Jun 9, 2026', amount:-124.00, type:'expense' },
-    { id:6, name:'Coffee Shop', date:'Jun 8, 2026', amount:-6.80, type:'expense' },
-    { id:7, name:'Transfer from savings', date:'Jun 5, 2026', amount:500, type:'income' },
-    { id:8, name:'Internet bill', date:'Jun 3, 2026', amount:-59.99, type:'expense' },
+    { id:1, name:'Tech Growth Fund — Investment Return', date:'Jun 16, 2026', amount:1250, type:'income' },
+    { id:2, name:'Dividend — S&P 500 ETF', date:'Jun 14, 2026', amount:325.50, type:'income' },
+    { id:3, name:'Monthly Utility Bill', date:'Jun 13, 2026', amount:-145.00, type:'expense' },
+    { id:4, name:'Stock Purchase — Tesla Inc.', date:'Jun 12, 2026', amount:-2500, type:'expense' },
+    { id:5, name:'Freelance Project Completion', date:'Jun 10, 2026', amount:1850, type:'income' },
+    { id:6, name:'Insurance Premium', date:'Jun 9, 2026', amount:-325.00, type:'expense' },
+    { id:7, name:'Cryptocurrency Investment — BTC', date:'Jun 8, 2026', amount:-5000, type:'expense' },
+    { id:8, name:'Bond Interest Payment', date:'Jun 5, 2026', amount:450, type:'income' },
   ]
 };
 
@@ -518,6 +534,7 @@ function doLogin() {
   if (!user) { errEl.textContent = 'Incorrect email or password. Try demo@nexusbank.com / demo123'; errEl.style.display='block'; return; }
   errEl.style.display = 'none';
   state.currentUser = user;
+  loadUserState(user.email);
   loadDashboard();
   show('screen-dashboard');
 }
@@ -533,21 +550,59 @@ function doSignup() {
   if (users.find(u => u.email === email)) { errEl.textContent = 'An account with this email already exists.'; errEl.style.display='block'; return; }
   const newUser = { email, password: pass, name };
   users.push(newUser);
+  saveUsersToStorage();
   errEl.style.display = 'none';
   state.currentUser = newUser;
-  state.balance = 25000;
-  state.txns = [{ id:1, name:'Welcome bonus — account opened', date:todayStr(), amount:25000, type:'income' }];
+  state.balance = 40500;
+  state.txns = [{ id:1, name:'Stock Investment — Initial Portfolio', date:todayStr(), amount:40500, type:'income' }];
   state.nextId = 2;
+  saveUserState(email);
   loadDashboard();
   show('screen-dashboard');
 }
 
 function doLogout() {
+  saveUserState(state.currentUser.email);
   state.currentUser = null;
   document.getElementById('login-email').value = '';
   document.getElementById('login-pass').value = '';
   document.getElementById('login-error').style.display = 'none';
   show('screen-login');
+}
+
+function saveUserState(email) {
+  const userState = {
+    balance: state.balance,
+    filterMode: state.filterMode,
+    nextId: state.nextId,
+    txns: state.txns
+  };
+  localStorage.setItem(`nexus_state_${email}`, JSON.stringify(userState));
+}
+
+function loadUserState(email) {
+  const stored = localStorage.getItem(`nexus_state_${email}`);
+  if (stored) {
+    const userState = JSON.parse(stored);
+    state.balance = userState.balance;
+    state.filterMode = userState.filterMode;
+    state.nextId = userState.nextId;
+    state.txns = userState.txns;
+  } else {
+    state.balance = 40500;
+    state.filterMode = 'all';
+    state.nextId = 9;
+    state.txns = [
+      { id:1, name:'Tech Growth Fund — Investment Return', date:'Jun 16, 2026', amount:1250, type:'income' },
+      { id:2, name:'Dividend — S&P 500 ETF', date:'Jun 14, 2026', amount:325.50, type:'income' },
+      { id:3, name:'Monthly Utility Bill', date:'Jun 13, 2026', amount:-145.00, type:'expense' },
+      { id:4, name:'Stock Purchase — Tesla Inc.', date:'Jun 12, 2026', amount:-2500, type:'expense' },
+      { id:5, name:'Freelance Project Completion', date:'Jun 10, 2026', amount:1850, type:'income' },
+      { id:6, name:'Insurance Premium', date:'Jun 9, 2026', amount:-325.00, type:'expense' },
+      { id:7, name:'Cryptocurrency Investment — BTC', date:'Jun 8, 2026', amount:-5000, type:'expense' },
+      { id:8, name:'Bond Interest Payment', date:'Jun 5, 2026', amount:450, type:'income' },
+    ];
+  }
 }
 
 function todayStr() {
@@ -650,6 +705,7 @@ function submitModal() {
   updateBalance();
   updateStats();
   renderTxns();
+  saveUserState(state.currentUser.email);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
